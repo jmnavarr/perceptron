@@ -1,0 +1,125 @@
+function [ oO ] = doBatchTraining(numHiddenNeurons, epochs, goal_err, lrate, drawrate, color, P, T, wH, wO, window)
+
+etaplus = 1.2;
+etaminus = .5;
+maxstep = 50;
+baselrate = .0001;       % initial learn rate, should be pretty insensitive
+dEwO = zeros(size(wO)); % last step's derivative of the error in the Output layer wrt output weights
+dEwH = zeros(size(wH)); % last step's derivative of the error in the Hidden layer wrt hidden weights
+
+deltaEwO = ones(size(wO))*baselrate; % the step deltas for the output weights
+deltaEwH = ones(size(wH))*baselrate; % the step deltas for the hidden weights
+
+[oO oH] = applyWeights(P, wH, wO);
+e = T - oO;
+error = mean(mean(e.*e));
+numIm(
+
+% do training
+for  itr =1:epochs
+    if error <= goal_err 
+        break
+    end
+
+    % current step's derivates of the errors wrt to weights
+    wOb = zeros(size(wO));
+    wHb = zeros(size(wH));
+
+    % iterate across all input images
+    for i = 1:numIm
+        % get derivatives of layer outputs
+        dO = dlogsigmoid(oO(:,i));
+        dH = dlogsigmoid(oH(:,i));
+
+        % get error slopes for each layer
+        eO = dO .* e(:,i);
+        eH = dH .* (wO' * eO);
+
+        % batch the weight changes
+        wOb = wOb - eO * oH(:,i)';
+        wHb = wHb - eH * P(:,i)';
+    end
+    
+    % determine weight changes in output layer
+    [maxi maxj] = size(wO);
+    signmap = sign(dEwO .* wOb);
+    for i = 1:maxi
+        for j = 1:maxj
+            % determine direction of change
+            if signmap(i,j) > 0
+                % if sign agrees, push up the learn rate
+                deltaEwO(i,j) = min(etaplus*deltaEwO(i,j),maxstep);
+                
+            elseif signmap(i,j) < 0
+                % if signs don't agree, decrease step
+                deltaEwO(i,j) = etaminus*deltaEwO(i,j);
+                
+                % leave weight alone for the next iteration
+                wOb(i,j) = 0;
+
+            else
+                % sign is 0
+                % nothing is actually done...
+            end
+        end
+    end
+
+    
+    % adjust weights
+    deltaw = sign(wOb) .* deltaEwO;
+    wO = wO - deltaw;
+
+    dEwO = wOb;
+    
+    
+    
+    
+    % determine weight changes in hidden layer
+    [maxi maxj] = size(wH);
+    signmap = sign(dEwH .* wHb);
+    for i = 1:maxi
+        for j = 1:maxj
+            % determine direction of change
+            if signmap(i,j) > 0
+                % if sign agrees, push up the learn rate
+                deltaEwH(i,j) = min(etaplus*deltaEwH(i,j),maxstep);
+
+            elseif signmap(i,j) < 0
+                % if signs don't agree, decrease step
+                deltaEwH(i,j) = etaminus*deltaEwH(i,j);
+                
+                % leave weight alone for the next iteration
+                wHb(i,j) = 0;
+            else
+                % sign is 0
+                % nothing is actually done...
+            end
+        end
+    end
+
+    % adjust weights
+    deltaw = sign(wHb) .* deltaEwH;
+    wH = wH - deltaw;
+
+    dEwH = wHb;
+
+%     wO = wO - .0004 * wOb;
+%     wH = wH - .0004 * wHb;
+
+
+    % get new outputs
+    [oO oH] = applyWeights(P, wH, wO);
+    
+    % calculate new error
+    e = T - oO;
+    error = mean(mean(e.*e));
+    
+    errors(itr) = error;
+
+    disp(sprintf('Iteration :%5d        mse :%12.10f%',itr,error));
+
+    % every once in a while, visualise the outputs
+    if mod(itr,drawrate) == 0 && drawrate > 0
+        window = drawImages(oO(:,sim),imRows,imCols,nim,phrases(sim),color,window);
+    end
+end

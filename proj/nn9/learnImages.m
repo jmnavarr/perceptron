@@ -1,0 +1,240 @@
+function [ input, target, wH, wO, errors ] = learnImages(numHiddenNeurons, epochs, goal_err, lrate, drawrate, color)
+% LEARNIMAGES Neural net training for images
+
+if nargin < 1
+    numHiddenNeurons = 7;
+end
+
+if nargin < 2
+    epochs = 1000;
+end
+
+if nargin < 3
+    goal_err = 10e-12;
+end
+
+if nargin < 4
+    drawrate = 25;
+end
+
+if nargin < 5
+    lrate=.8;
+end
+
+if nargin < 6
+    %color = 'Jet';
+    color = 'Gray';
+end
+
+
+% get input
+[images, input] = getImages;
+
+% format the input character strings into binary strings
+P = str2bin(input);
+
+% image dimensions
+[imRows, imCols, numIm] = size(images);
+
+% flatten target images into 1D vectors
+T = reshape(images, imRows*imCols, numIm);
+
+% establish starting params
+[wH wO] = createWeights(P, T, numHiddenNeurons);
+[oO oH] = applyWeights(P, wH, wO);
+e = T - oO;
+error = mean(mean(e.*e));
+e = e .* abs(e);
+lasterror = error;
+
+wHf = wH;
+wOf = wO;
+
+wHl = wH;
+wOl = wO;
+
+% display our current output
+window = drawImages(oO,imRows,imCols,numIm,input,color);
+
+etaplus = 1.2;
+etaminus = .5;
+maxstep = 1;
+minstep = 0;
+baselrate = .0000001;       % initial learn rate, should be pretty insensitive
+dEwO = zeros(size(wO)); % last step's derivative of the error in the Output layer wrt output weights
+dEwH = zeros(size(wH)); % last step's derivative of the error in the Hidden layer wrt hidden weights
+
+deltaEwO = ones(size(wO))*baselrate; % the step deltas for the output weights
+deltaEwH = ones(size(wH))*baselrate; % the step deltas for the hidden weights
+
+% do training
+for  itr =1:epochs
+    if error <= goal_err 
+        break
+    end
+
+    % current step's derivates of the errors wrt to weights
+    wOb = zeros(size(wO));
+    wHb = zeros(size(wH));
+
+    % iterate across all input images
+    for i = 1:numIm
+        % get derivatives of layer outputs
+        dO = dlogsigmoid(oO(:,i));
+        dH = dlogsigmoid(oH(:,i));
+
+        % get error slopes for each layer
+        eO = dO .* e(:,i) * sum(abs(e(:,i)));
+        eH = dH .* (wO' * eO);
+
+        % batch the weight changes
+        wOb = wOb - eO * oH(:,i)';
+        wHb = wHb - eH * P(:,i)';
+    end
+
+    % determine weight changes in output layer
+    [maxi maxj] = size(wO);
+    signmap = sign(dEwO .* wOb);
+    for i = 1:maxi
+        for j = 1:maxj
+            % determine direction of change
+            if signmap(i,j) > 0
+                % if sign agrees, push up the learn rate
+                deltaEwO(i,j) = min(etaplus*deltaEwO(i,j),maxstep);
+                
+                % apply weight change
+                wOf(i,j) = wO(i,j) - sign(wOb(i,j))*deltaEwO(i,j);
+                
+            elseif signmap(i,j) < 0
+                oldWS = deltaEwO(i,j);
+                
+                % if signs don't agree, decrease step
+                deltaEwO(i,j) = max(etaminus*deltaEwO(i,j),minstep);
+                
+                % roll back weight only if overall error increased
+                if error > lasterror
+                    wOf(i,j) = wO(i,j) + sign(dEwO(i,j))*oldWS;
+                end
+                
+                % prevent weight step change next iteration
+                wOb(i,j) = 0;
+                
+%                 % if error is growing, rollback last step's change
+%                 if error > lasterror
+%                     wOf(i,j) = wOl(i,j);
+%                 end
+
+            else
+                % sign is 0
+                
+                % apply weight change without change weight step
+                wOf(i,j) = wO(i,j) - sign(wOb(i,j))*deltaEwO(i,j);
+                
+            end
+        end
+    end
+
+    % store old weights
+    wOl = wO;
+    wO = wOf;
+    
+%     % adjust weights
+%     deltaw = sign(wOb) .* deltaEwO;
+%     wO = wO - deltaw;
+
+    dEwO = wOb;
+    
+    
+    
+    
+    % determine weight changes in hidden layer
+    [maxi maxj] = size(wH);
+    signmap = sign(dEwH .* wHb);
+    for i = 1:maxi
+        for j = 1:maxj
+            % determine direction of change
+            if signmap(i,j) > 0
+                % if sign agrees, push up the learn rate
+                deltaEwH(i,j) = min(etaplus*deltaEwH(i,j),maxstep);
+                
+                % apply weight change
+                wHf(i,j) = wH(i,j) - sign(wHb(i,j))*deltaEwH(i,j);
+
+            elseif signmap(i,j) < 0
+                oldWS = deltaEwH(i,j);
+                
+                % if signs don't agree, decrease step
+                deltaEwH(i,j) = max(etaminus*deltaEwH(i,j),minstep);
+                
+                % rollback weight only if error increased
+                if error > lasterror
+                    wHf(i,j) = wH(i,j) + sign(dEwH(i,j))*oldWS;
+                end
+                
+                % prevent weight step change next iteration
+                wHb(i,j) = 0;
+                
+%                 % if error is growing, rollback last step's change
+%                 if error > lasterror
+%                     wHf(i,j) = wHl(i,j);
+%                 end
+            else
+                % sign is 0
+                
+                % apply weight change without adjusting weightstep
+                wHf(i,j) = wH(i,j) - sign(wHb(i,j))*deltaEwH(i,j);
+            end
+        end
+    end
+    
+    % store old weights
+    wHl = wH;
+    wH = wHf;
+
+%     % adjust weights
+%     deltaw = sign(wHb) .* deltaEwH;
+%     wH = wH - deltaw;
+
+    dEwH = wHb;
+
+%     wO = wO - .0004 * wOb;
+%     wH = wH - .0004 * wHb;
+
+
+    % get new outputs
+    [oO oH] = applyWeights(P, wH, wO);
+    
+    % calculate new error
+    lasterror = error;
+    e = T - oO;
+    e = e .* abs(e);
+    error = mean(mean(e.*e));
+    
+    errors(itr) = error;
+
+    disp(sprintf('Iteration :%5d        mse :%12.10f%',itr,error));
+
+    % every once in a while, visualise the outputs
+    if mod(itr,drawrate) == 0 && drawrate > 0
+        window = drawImages(oO,imRows,imCols,numIm,input,color,window);
+    end
+end
+
+% display the final output
+drawImages(oO,imRows,imCols,numIm,input,color,window);
+
+% assign output
+input = P;
+target = T;
+
+
+
+
+
+
+
+
+
+
+
+

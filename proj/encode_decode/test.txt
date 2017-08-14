@@ -1,0 +1,2 @@
+MATLAB is a great program!
+It makes life much easier!

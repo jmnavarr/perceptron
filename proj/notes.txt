@@ -1,0 +1,40 @@
+Run this: 
+i=9; A1(:,i)=logsig(W1*P(:,i),b1); A2(:,i)=logsig(W2*A1(:,i),b2)
+You will see that if you vary i from 1, 2, ..., 9, the output of this is always T, the target matrix!
+
+i=9; A1(:,i)=logsig(W1*train(:,i,iword),b1); A2(:,i)=logsig(W2*A1(:,i),b2)
+
+
+NN4 Code
+========
+56 input neurons
+20 hidden layers
+100 outputs
+
+
+sim =
+
+    14    21    62    67    72    74    91    99   113   114   124   136   146   153   155   172
+
+K>> target
+
+target =
+
+     9    19    24    27    57    58    64    69    94   103   115   122   126   141   152   159 
+
+
+Catastrophic Interference Approaches
+====================================
+Do rehearsal with orignial patterns as new patterns are fed in
+	- Requires the unrealistic assumption of permanent access to all patterns on which the network was previously trained.
+Use pseudo-patterns (random inputs and outputs) to rehearse as new patterns are fed in
+	- Not as effective as using original patterns, but still reduces catastrophic interference.
+Use an evolution-based approach that uses genetic cross-over and random mutation to develop increasingly fit populations
+
+Sequential vs. Concurrent
+=========================
+Networks that suffer from catastrophic interference obviously cannot learn patterns
+sequentially. This is why backpropagation networks must learn collections of patterns
+‘concurrently’, i.e. modifying the network’s weights a very small amount for each
+item and making many passes through the training set to settle gradually on an appropriate
+set of weights for the entire set of items.

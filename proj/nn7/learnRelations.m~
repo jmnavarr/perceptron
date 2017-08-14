@@ -1,0 +1,219 @@
+function [ trainset, testset, wO, wH, imageO, imageH, errors ] = learnRelations( imageH, imageO )
+%LEARNRELATIONS Summary of this function goes here
+%   Detailed explanation goes here
+
+if nargin < 2
+    [scratch scratch imageH imageO] = learnImages;
+end
+
+numHiddenNeurons = 200;
+epochs = 3000;
+goal_err = 10e-5;
+drawrate = 25;
+color = 'Gray';
+testsetsize = 16;
+imagedisplaysize = 16;
+
+errors = zeros(epochs,1);
+
+% get inputs
+[images phrases] = getRelations;
+
+% format the input character strings into binary strings
+P = str2bin(phrases);
+
+% image dimensions
+[imRows, imCols, numIm] = size(images);
+flatimlen = imRows*imCols;
+
+% flatten target images into 1D vectors
+T = reshape(images, flatimlen, numIm);
+
+
+% restrict input
+trainset = randsample(1:numIm,numIm-testsetsize,false);
+P = P(:,trainset);
+T = T(:,trainset);
+phrases = phrases(trainset);
+
+testset = setdiff(1:numIm,trainset);
+
+sim = sort(randsample(1:floor(numIm-testsetsize),imagedisplaysize,false));
+[eim nim] = size(sim);
+
+
+% establish starting params
+[phraselen numphrases] = size(P);
+[modulehidden modinlen] = size(imageH);
+[modoutlen scratch] = size(imageO);
+
+a =  0.4;
+b = -0.4;
+
+% generate random weights
+%numHiddenNeurons = modoutlen*2 + phraselen - 2 * modinlen;
+wH = a + (b-a)*rand(numHiddenNeurons,modoutlen*2 + phraselen - 2 * modinlen);
+wO = a + (b-a)*rand(flatimlen,numHiddenNeurons);
+
+% apply the image modules
+[oM oMH] = applyWeights(P(1:modinlen,:), imageH, imageO);
+[oN oNH] = applyWeights(P((phraselen-modinlen+1):phraselen,:), imageH, imageO);
+
+% consolidate hidden layer input
+oMNP = [oM ; P((modinlen+1):(phraselen-modinlen),:) ; oN ];
+
+% get hidden layer output
+oH = logsigmoid(wH*oMNP);
+
+% get ouput layer output
+oO = logsigmoid(wO*oH);
+
+% calculate error
+e = T - oO;
+error = mean(mean(e.*e));
+
+% display our current output
+if drawrate > 0
+    window = drawImages(oO(:,sim),imRows,imCols,nim,phrases(sim),color);
+end
+
+% initial params
+etaplus = 1.2;
+etaminus = .5;
+maxstep = 50;
+baselrate = .0001;       % initial learn rate, should be pretty insensitive
+dEwO = zeros(size(wO)); % last step's derivative of the error in the Output layer wrt output weights
+dEwH = zeros(size(wH)); % last step's derivative of the error in the Hidden layer wrt hidden weights
+
+deltaEwO = ones(size(wO))*baselrate; % the step deltas for the output weights
+deltaEwH = ones(size(wH))*baselrate; % the step deltas for the hidden weights
+
+iterset = randsample(1:numphrases,numphrases);
+
+% do training
+for  itr =1:epochs
+    if error <= goal_err 
+        break
+    end
+
+    % current step's derivates of the errors wrt to weights
+    wOb = zeros(size(wO));
+    wHb = zeros(size(wH));
+    
+   iterset = randsample(1:numphrases,floor(numphrases/16));
+
+    % iterate across all input images
+    for i = iterset
+        % get derivatives of layer outputs
+        dO = dlogsigmoid(oO(:,i));
+        dH = dlogsigmoid(oH(:,i));
+
+        % get error slopes for each layer
+        eO = dO .* e(:,i);
+        eH = dH .* (wO' * eO);
+
+        % batch the weight changes
+        wOb = wOb - eO * oH(:,i)';
+        wHb = wHb - eH * oMNP(:,i)';
+    end
+    
+    % determine weight changes in output layer
+    [maxi maxj] = size(wO);
+    signmap = sign(dEwO .* wOb);
+    for i = 1:maxi
+        for j = 1:maxj
+            % determine direction of change
+            if signmap(i,j) > 0
+                % if sign agrees, push up the learn rate
+                deltaEwO(i,j) = min(etaplus*deltaEwO(i,j),maxstep);
+                
+            elseif signmap(i,j) < 0
+                % if signs don't agree, decrease step
+                deltaEwO(i,j) = etaminus*deltaEwO(i,j);
+                
+                % leave weight alone for the next iteration
+                wOb(i,j) = 0;
+
+            else
+                % sign is 0
+                % nothing is actually done...
+            end
+        end
+    end
+
+    
+    % adjust weights
+    deltaw = sign(wOb) .* deltaEwO;
+    wO = wO - deltaw;
+
+    dEwO = wOb;
+    
+    
+    
+    
+    % determine weight changes in hidden layer
+    [maxi maxj] = size(wH);
+    signmap = sign(dEwH .* wHb);
+    for i = 1:maxi
+        for j = 1:maxj
+            % determine direction of change
+            if signmap(i,j) > 0
+                % if sign agrees, push up the learn rate
+                deltaEwH(i,j) = min(etaplus*deltaEwH(i,j),maxstep);
+
+            elseif signmap(i,j) < 0
+                % if signs don't agree, decrease step
+                deltaEwH(i,j) = etaminus*deltaEwH(i,j);
+                
+                % leave weight alone for the next iteration
+                wHb(i,j) = 0;
+            else
+                % sign is 0
+                % nothing is actually done...
+            end
+        end
+    end
+
+    % adjust weights
+    deltaw = sign(wHb) .* deltaEwH;
+    wH = wH - deltaw;
+
+    dEwH = wHb;
+
+%     wO = wO - .0004 * wOb;
+%     wH = wH - .0004 * wHb;
+
+
+    % get new outputs
+    % apply the image modules
+    [oM oMH] = applyWeights(P(1:modinlen,:), imageH, imageO);
+    [oN oNH] = applyWeights(P((phraselen-modinlen+1):phraselen,:), imageH, imageO);
+
+    % consolidate hidden layer input
+    oMNP = [oM ; P((modinlen+1):(phraselen-modinlen),:) ; oN ];
+
+    % get hidden layer output
+    oH = logsigmoid(wH*oMNP);
+
+    % get ouput layer output
+    oO = logsigmoid(wO*oH);
+
+    
+    % calculate new error
+    e = T - oO;
+    error = mean(mean(e.*e));
+
+    errors(itr) = error;
+
+    disp(sprintf('Iteration :%5d        mse :%12.10f%',itr,error));
+
+    % every once in a while, visualise the outputs
+    if mod(itr,drawrate) == 0 && drawrate > 0
+        window = drawImages(oO(:,sim),imRows,imCols,nim,phrases(sim),color,window);
+    end
+end
+
+% display the final output
+if drawrate > 0
+    window = drawImages(oO(:,sim),imRows,imCols,nim,phrases(sim),color,window);
+end

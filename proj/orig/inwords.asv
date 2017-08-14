@@ -1,0 +1,64 @@
+% tree
+x = [0	0	0	1	1	1	0	1	0	0;  % 74 - t
+     0	0	0	1	1	1	0	0	1	0;  % 72 - r
+     0	0	0	1	1	0	0	1	0	1;  % 65 - e
+     0	0	0	1	1	0	0	1	0	1;  % 65 - e
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0];
+x = [x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x];
+inword(:,:,1) = x;             
+% house
+x = [0	0	0	1	1	0	1	0	0	0;  % 68 - h
+     0	0	0	1	1	0	1	1	1	1;  % 6F - o
+     0	0	0	1	1	1	0	1	0	1;  % 75 - u
+     0	0	0	1	1	1   0	0	1	1;  % 73 - s
+     0	0	0	1	1	0	0	1	0	1;  % 65 - e
+     0	0	0	0	0	0	0	0	0	0;  
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0];
+inword(:,:,2) = [x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x];        
+% car
+x = [0	0	0	1	1	0	0	0	1	1;  % 63 - c
+     0	0	0	1	1	0	0	0	0	1;  % 61 - a
+     0	0	0	1	1	1	0	0	1	0;  % 72 - r
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0;
+     0	0	0	0	0	0	0	0	0	0];
+inword(:,:,3) = [x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x;
+                 x  x   x   x   x   x   x   x   x   x];        
